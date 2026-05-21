@@ -61,11 +61,23 @@ sudo service docker start
 ```
 
 ### 3. Boot the Backend Cluster
-The system must be booted via PM2 to ensure the Redis pub/sub adapters initialize correctly across the forks.
+The Application Layer must be booted via PM2 to ensure the Redis pub/sub adapters initialize correctly across the forks by executing these commands.
 ```bash
 cd application-layer
 pm2 start ecosystem.config.js
 pm2 logs
+```
+
+The Execution Layer can be booted by executing these command
+```bash
+cd ../execution-layer
+npm start
+```
+
+The Client Layer can be booted by executing these commands
+```bash
+cd ../client-layer
+npm run dev
 ```
 
 ### 4. Gateway Initialization (Nginx)
@@ -108,7 +120,7 @@ If you prefer to keep your host environment clean, you can containerize the Ngin
 
 Note for Docker Desktop Users: If you are using Docker Desktop on Windows/Mac, you can replace the IP addresses in the upstream block of your nginx.conf with host.docker.internal to route traffic out of the container to your local PM2 cluster. If you are on native Linux, you must use the IP address retrieved in Step 1.
 
-1. Create the Dockerfile:
+##### 1. Create the Dockerfile:
 Create a file named Dockerfile in the root of the project (next to nginx.conf) with the following lightweight configuration:
 ```Dockerfile
 
@@ -125,10 +137,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80
 ```
 
-2. Build and Execute the Container:
+##### 2. Build and Execute the Container:
 Run these commands from the root directory to build the proxy image and launch the gateway in the background:
 ```Bash
-
 docker build -t collab-nginx-gateway .
 docker run -d -p 80:80 --name proxy-gateway collab-nginx-gateway
 ```
