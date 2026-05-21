@@ -26,7 +26,7 @@ To run this system locally, the host machine **must** have the following install
 ## 4. Configuration Matrix (.env)
 The system requires strict environment variable definitions to bridge the hybrid-cloud gap.
 
-**Client Layer (`client-layer/.env.production`):**
+**Application Layer (`application-layer/.env`):**
 ```env
 # Must point to the secure Ngrok HTTPS tunnel
 VITE_API_URL=https://<your-ngrok-url>.ngrok-free.dev/api/v1
