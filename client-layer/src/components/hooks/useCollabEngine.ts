@@ -19,8 +19,10 @@ export function useCollabEngine(currentRoom: string | null) {
     const newLocalDoc = new Y.Doc();
     const networkDoc = new Y.Doc();
 
+    const socketUrl = import.meta.env.VITE_WS_URL || 'ws://localhost';
+
     const newProvider = new WebsocketProvider(
-      `ws://${window.location.host}`,
+      socketUrl,
       `yjs/${currentRoom}`,
       networkDoc
     );
