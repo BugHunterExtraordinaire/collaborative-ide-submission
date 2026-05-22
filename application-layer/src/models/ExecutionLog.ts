@@ -5,7 +5,8 @@ import { IExecutionLog } from '../types/mongoose/interfaces';
 const ExecutionLogSchema = new Schema({
   sessionId: { 
     type: String, 
-    required: true 
+    required: true,
+    index: true
   },
   userId: { 
     type: mongoose.Types.ObjectId, 

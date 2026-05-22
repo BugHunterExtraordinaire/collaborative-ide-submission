@@ -1,7 +1,7 @@
 import * as Y from 'yjs';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Editor } from "@monaco-editor/react";
@@ -25,6 +25,9 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
   const [socket, setSocket] = useState<Socket | null>(null);
 
   const { status: yjsStatus, localDoc, provider, isSynced } = useCollabEngine(currentRoom);
+
+  const playbackDocRef = useRef<Y.Doc>(new Y.Doc());
+  const currentPlaybackIndex = useRef<number>(-1);
 
   useEffect(() => {
     if (currentRoom && user) {
@@ -64,42 +67,58 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
 
   useEffect(() => {
     if (!localDoc) return;
-    const yFiles = localDoc.getArray<string>('file-list');
+    
+    const yFilesMap = localDoc.getMap<boolean>('file-system');
 
     const updateFiles = () => {
-      const syncedFiles = yFiles.toArray();
-      const uniqueFiles = Array.from(new Set(syncedFiles));
+      const uniqueFiles = Array.from(yFilesMap.keys());
       if (uniqueFiles.length > 0) {
         setFiles(uniqueFiles);
         setActiveFile(prevActive => (!prevActive || !uniqueFiles.includes(prevActive)) ? uniqueFiles[0] : prevActive);
       }
     };
 
-    yFiles.observe(updateFiles);
+    yFilesMap.observe(updateFiles);
     updateFiles();
 
-    if (isSynced && isSessionLoaded && yFiles.length === 0) {
+    if (isSynced && isSessionLoaded && Array.from(yFilesMap.keys()).length === 0) {
       const defaultFile = language === 'python' ? 'main.py' : language === 'javascript' ? 'main.js' : 'main.cpp';
-      if (!yFiles.toArray().includes(defaultFile)) yFiles.push([defaultFile]);
+      yFilesMap.set(defaultFile, true); 
     }
 
-    return () => yFiles.unobserve(updateFiles);
+    return () => yFilesMap.unobserve(updateFiles);
   }, [localDoc, language, isSynced, isSessionLoaded]);
 
   const safeActiveFile = activeFile || files[0] || '';
 
   const playbackCode = useMemo(() => {
     if (!isPlaybackMode || historyLogs.length === 0) return 'Loading history...';
-    const tempDoc = new Y.Doc();
-    const tempText = tempDoc.getText(safeActiveFile);
-    for (let i = 0; i <= playbackIndex; i++) {
-      const log = historyLogs[i];
-      if (log && log.operationData && log.operationData.data) {
-        const updateBuffer = new Uint8Array(log.operationData.data);
-        Y.applyUpdate(tempDoc, updateBuffer);
+    
+    const tempDoc = playbackDocRef.current;
+
+    if (playbackIndex > currentPlaybackIndex.current) {
+      for (let i = currentPlaybackIndex.current + 1; i <= playbackIndex; i++) {
+        const log = historyLogs[i];
+        if (log && log.operationData && log.operationData.data) {
+          const updateBuffer = new Uint8Array(log.operationData.data);
+          Y.applyUpdate(tempDoc, updateBuffer);
+        }
+      }
+    } 
+    else if (playbackIndex < currentPlaybackIndex.current) {
+      playbackDocRef.current = new Y.Doc();
+      const newTempDoc = playbackDocRef.current;
+      for (let i = 0; i <= playbackIndex; i++) {
+        const log = historyLogs[i];
+        if (log && log.operationData && log.operationData.data) {
+          const updateBuffer = new Uint8Array(log.operationData.data);
+          Y.applyUpdate(newTempDoc, updateBuffer);
+        }
       }
     }
-    return tempText.toString();
+
+    currentPlaybackIndex.current = playbackIndex;
+    return playbackDocRef.current.getText(safeActiveFile).toString();
   }, [playbackIndex, historyLogs, isPlaybackMode, safeActiveFile]);
 
   return (

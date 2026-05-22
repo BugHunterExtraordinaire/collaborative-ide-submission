@@ -93,7 +93,7 @@ export const setupYjsWebSocket = async (server: http.Server) => {
 
           saveTimers.set(docName, setTimeout(async () => {
             try {
-              const fullStateBuffer = Buffer.from(Y.encodeStateAsUpdate(ydoc));
+              const fullStateBuffer = Buffer.from(Y.encodeStateAsUpdateV2(ydoc));
               await Session.findOneAndUpdate(
                 { sessionId: docName },
                 { state: fullStateBuffer },
@@ -138,7 +138,7 @@ export const setupYjsWebSocket = async (server: http.Server) => {
 
       Session.findOne({ sessionId: docName }).then(session => {
         if (session && session.state) {
-          Y.applyUpdate(ydoc, new Uint8Array(session.state), 'db-load');
+          Y.applyUpdateV2(ydoc, new Uint8Array(session.state), 'db-load');
           console.log(`Loaded historical state for session: ${docName}`);
         }
       }).catch(err => console.error('Error loading from MongoDB:', err));

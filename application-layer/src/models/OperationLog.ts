@@ -10,7 +10,8 @@ const OperationLogSchema: Schema = new Schema({
   },
   timestamp: { 
     type: Date, 
-    default: Date.now 
+    default: Date.now,
+    expires: 604800
   },
   operationData: { 
     type: Buffer, 
