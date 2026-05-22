@@ -25,7 +25,7 @@ To run this system locally, the host machine **must** have the following install
 * **Nginx:** For handling reverse proxy which is run locally on port 80.
 
 ## 4. Configuration Matrix (.env)
-The system requires strict environment variable definitions to bridge the hybrid-cloud gap.
+The system requires environment variable configurations to route traffic and orchestrate communication across its decoupled micro-layers.
 
 **Client Layer (`client-layer/.env`):**
 ```env
@@ -37,7 +37,7 @@ VITE_WS_URL=ws://localhost
 ```env
 MONGO_URI=mongodb://localhost:27017/collaborative-ide
 REDIS_URL=redis://localhost:6379
-JWT_SECRET=<secure-256-bit-secret>
+JWT_SECRET=secure-256-bit-secret
 JWT_LIFETIME=6h
 CLIENT_URL=http://localhost:5173
 EXECUTION_LAYER=http://localhost:5000
@@ -96,7 +96,7 @@ sudo service docker status
 ### 3. Boot the Application Backend Cluster and Execution Layer server
 The Application Layer must be booted via PM2 to ensure the Redis pub/sub adapters initialize correctly across the forks by executing these commands.
 ```bash
-cd application-layer
+cd ../application-layer
 pm2 start ecosystem.config.js
 pm2 logs
 ```
