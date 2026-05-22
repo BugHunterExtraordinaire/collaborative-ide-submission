@@ -28,7 +28,7 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
 
   useEffect(() => {
     if (currentRoom && user) {
-      const socketUrl = import.meta.env.VITE_API_URL || "http://localhost:80";
+      const socketUrl = import.meta.env.VITE_WS_URL || "ws://localhost";
       const newSocket = io(socketUrl, { forceNew: true });
       newSocket.on('connect', () => setSocket(newSocket));
 
