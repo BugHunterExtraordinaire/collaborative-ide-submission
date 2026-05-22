@@ -29,7 +29,7 @@ export const loginUser: DefaultController = async (req, res) => {
     httpOnly: true,
     secure: config.isProduction,
     sameSite: config.isProduction ? 'none' : 'lax',
-    maxAge: 1000 * 60 * 60 * 24 
+    maxAge: 1000 * 60 * 60 * 6 
   });
 
   res.status(200).json({
