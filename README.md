@@ -6,7 +6,7 @@ This project is a real-time, distributed Integrated Development Environment (IDE
 The system is divided into highly specialized, decoupled micro-layers:
 
 * **Frontend (Client Layer):** Built with React, Vite, and Monaco Editor and styled using TailwindCSS. State synchronization is handled by Yjs library.
-* **Gateway:** Nginx reverse proxy handling SSL termination and strict CORS preflight routing.
+* **Gateway:** Nginx reverse proxy handling strict CORS preflight routing and load-balancing traffic across the backend cluster.
 * **Application Layer (API & WebSockets):** An Express.js and Socket.IO backend. 
 * **State & Persistence:**
   * **MongoDB:** Persistent storage for user accounts, session metadata, and historical execution logs.
@@ -27,22 +27,28 @@ To run this system locally, the host machine **must** have the following install
 ## 4. Configuration Matrix (.env)
 The system requires strict environment variable definitions to bridge the hybrid-cloud gap.
 
+**Client Layer (`client-layer/.env`):**
+```env
+VITE_API_URL=http//localhost
+VITE_WS_URL=ws//localhost
+```
+
 **Application Layer (`application-layer/.env`):**
 ```env
 MONGO_URI=mongodb://localhost:27017/collaborative-ide
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=<secure-256-bit-secret>
-JWT_LIFETIME=<custom-lifetime-string>
-CLIENT_URL=<vite-server-url>
-EXECUTION-LAYER=http://localhost:<execution-layer-port>
+JWT_LIFETIME=6h
+CLIENT_URL=http://localhost:5173
+EXECUTION_LAYER=http://localhost:5000
 ```
 
 **Execution Layer (`execution-layer/.env`):**
 ```env
-PORT=<custom-port>
-EXEC_MEMORY_MB=<custom-container-RAM-limit(MB)>
-EXEC_CPUS=<custom-container-CPU-throttling>
-EXEC_TIMEOUT_MS=<custom-execution-timeout-limit(ms)>
+PORT=5000
+EXEC_MEMORY_MB=128
+EXEC_CPUS=0.5
+EXEC_TIMEOUT_MS=10000
 ```
 
 ## 5. Boot Sequence
@@ -54,13 +60,40 @@ cd ../execution-layer && npm install
 ```
 
 ### 2. Start Infrastructure
-Ensure Docker and Redis are actively running in the background.
+**Step 1:** Ensure MongoDB, Redis, and Docker are actively running in the background before booting the application cluster.
+
 ```bash
+# Start MongoDB (Use 'systemctl' for native Ubuntu, or 'service' for older WSL2 setups)
+sudo systemctl start mongod
+# OR:
+sudo service mongod start
+
+# Start the Redis message broker
 sudo service redis-server start
+
+# Start the Docker execution daemon
 sudo service docker start
 ```
 
-### 3. Boot the Backend Cluster
+**Step 2:** Check if services are successfully running
+
+**For Native Linux (and WSL2 with systemd enabled):**
+```bash
+# Check if services report as "active (running)"
+sudo systemctl status mongod
+sudo systemctl status redis-server
+sudo systemctl status docker
+```
+
+**For Standard WSL2 (Legacy Init):**
+```bash
+# Check if services report as "[OK]" or "running"
+sudo service mongod status
+sudo service redis-server status
+sudo service docker status
+```
+
+### 3. Boot the Application Backend Cluster and Execution Layer server
 The Application Layer must be booted via PM2 to ensure the Redis pub/sub adapters initialize correctly across the forks by executing these commands.
 ```bash
 cd application-layer
@@ -72,12 +105,6 @@ The Execution Layer can be booted by executing these command
 ```bash
 cd ../execution-layer
 npm start
-```
-
-The Client Layer can be booted by executing these commands
-```bash
-cd ../client-layer
-npm run dev
 ```
 
 ### 4. Gateway Initialization (Nginx)
@@ -118,7 +145,7 @@ sudo service nginx reload
 #### Method 2: Running Nginx via Docker
 If you prefer to keep your host environment clean, you can containerize the Nginx proxy.
 
-Note for Docker Desktop Users: If you are using Docker Desktop on Windows/Mac, you can replace the IP addresses in the upstream block of your nginx.conf with host.docker.internal to route traffic out of the container to your local PM2 cluster. If you are on native Linux, you must use the IP address retrieved in Step 1.
+Note for Docker Desktop Users: If you are using Docker Desktop on Windows/Mac, you can replace the IP addresses in the upstream block of your nginx.conf with host.docker.internal to route traffic out of the container to your local PM2 cluster. If you are on native Linux, you must use the IP address retrieved in the Host IP Retrieval Step.
 
 ##### 1. Create the Dockerfile:
 Create a file named Dockerfile in the root of the project (next to nginx.conf) with the following lightweight configuration:
@@ -142,4 +169,10 @@ Run these commands from the root directory to build the proxy image and launch t
 ```Bash
 docker build -t collab-nginx-gateway .
 docker run -d -p 80:80 --name proxy-gateway collab-nginx-gateway
+```
+
+### 5. Boot the Client Layer Vite Server
+```bash
+cd ../client-layer
+npm run dev
 ```
