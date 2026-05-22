@@ -29,8 +29,8 @@ The system requires strict environment variable definitions to bridge the hybrid
 
 **Client Layer (`client-layer/.env`):**
 ```env
-VITE_API_URL=http//localhost
-VITE_WS_URL=ws//localhost
+VITE_API_URL=http://localhost
+VITE_WS_URL=ws://localhost
 ```
 
 **Application Layer (`application-layer/.env`):**
