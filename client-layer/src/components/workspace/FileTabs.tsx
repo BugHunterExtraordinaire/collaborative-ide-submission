@@ -24,7 +24,7 @@ export default function FileTabs() {
   };
 
   return (
-    <div className="flex items-center bg-zinc-950 border-b border-zinc-800 overflow-x-auto text-sm" role='tablist' aria-controls='editor-selected-file'>
+    <div className="flex items-center bg-zinc-950 border-b border-zinc-800 overflow-x-auto text-sm scrollbar-hide" role='tablist' aria-controls='editor-selected-file'>
       {files.map(file => <File 
                             key={file} 
                             file={file} 

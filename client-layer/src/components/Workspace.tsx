@@ -29,6 +29,9 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
   const playbackDocRef = useRef<Y.Doc>(new Y.Doc());
   const currentPlaybackIndex = useRef<number>(-1);
 
+  const snapshotsRef = useRef<Map<number, Uint8Array>>(new Map());
+  const SNAPSHOT_INTERVAL = 100;
+
   useEffect(() => {
     if (currentRoom && user) {
       const socketUrl = import.meta.env.VITE_WS_URL || "ws://localhost";
@@ -67,7 +70,7 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
 
   useEffect(() => {
     if (!localDoc) return;
-    
+
     const yFilesMap = localDoc.getMap<boolean>('file-system');
 
     const updateFiles = () => {
@@ -83,7 +86,7 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
 
     if (isSynced && isSessionLoaded && Array.from(yFilesMap.keys()).length === 0) {
       const defaultFile = language === 'python' ? 'main.py' : language === 'javascript' ? 'main.js' : 'main.cpp';
-      yFilesMap.set(defaultFile, true); 
+      yFilesMap.set(defaultFile, true);
     }
 
     return () => yFilesMap.unobserve(updateFiles);
@@ -96,24 +99,35 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
     
     const tempDoc = playbackDocRef.current;
 
-    if (playbackIndex > currentPlaybackIndex.current) {
-      for (let i = currentPlaybackIndex.current + 1; i <= playbackIndex; i++) {
+    const applyUpdatesAndCache = (start: number, end: number, doc: Y.Doc) => {
+      for (let i = start; i <= end; i++) {
         const log = historyLogs[i];
         if (log && log.operationData && log.operationData.data) {
           const updateBuffer = new Uint8Array(log.operationData.data);
-          Y.applyUpdate(tempDoc, updateBuffer);
+          Y.applyUpdate(doc, updateBuffer); 
+        }
+        
+        if (i > 0 && i % SNAPSHOT_INTERVAL === 0 && !snapshotsRef.current.has(i)) {
+          snapshotsRef.current.set(i, Y.encodeStateAsUpdate(doc)); 
         }
       }
+    };
+
+    if (playbackIndex > currentPlaybackIndex.current) {
+      applyUpdatesAndCache(currentPlaybackIndex.current + 1, playbackIndex, tempDoc);
     } 
     else if (playbackIndex < currentPlaybackIndex.current) {
       playbackDocRef.current = new Y.Doc();
       const newTempDoc = playbackDocRef.current;
-      for (let i = 0; i <= playbackIndex; i++) {
-        const log = historyLogs[i];
-        if (log && log.operationData && log.operationData.data) {
-          const updateBuffer = new Uint8Array(log.operationData.data);
-          Y.applyUpdate(newTempDoc, updateBuffer);
-        }
+
+      const targetSnapshot = Math.floor(playbackIndex / SNAPSHOT_INTERVAL) * SNAPSHOT_INTERVAL;
+      const cachedSnapshot = snapshotsRef.current.get(targetSnapshot);
+
+      if (targetSnapshot > 0 && cachedSnapshot) {
+        Y.applyUpdate(newTempDoc, cachedSnapshot);
+        applyUpdatesAndCache(targetSnapshot + 1, playbackIndex, newTempDoc);
+      } else {
+        applyUpdatesAndCache(0, playbackIndex, newTempDoc);
       }
     }
 
@@ -130,10 +144,12 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
         safeActiveFile, sessionName, setActiveFile, setIsPlaybackMode, setPlaybackIndex,
         setCurrentRoom, setFiles
       }}>
-        <main className="flex h-screen bg-black text-white font-sans overflow-hidden">
-          <section className="w-3/5 border-r border-zinc-800 flex flex-col bg-zinc-900"
+        <main className="flex flex-col lg:flex-row h-screen bg-black text-white font-sans overflow-hidden">
+
+          <section className="w-full lg:w-3/5 h-[60%] lg:h-full border-b lg:border-b-0 lg:border-r border-zinc-800 flex flex-col bg-zinc-900 relative"
             aria-label="Code Editor and File Management">
-            <div className="absolute top-10 right-[41%] z-10 text-xs font-mono px-2 py-1 bg-black/50 rounded border border-zinc-700 flex items-center gap-2"
+
+            <div className="absolute top-2 right-2 lg:top-10 lg:right-[41%] z-10 text-xs font-mono px-2 py-1 bg-black/50 rounded border border-zinc-700 flex items-center gap-2"
               role="status"
               aria-live="polite">
               <span className={`w-2 h-2 rounded-full ${yjsStatus === 'Connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} aria-hidden='true'></span>
@@ -144,7 +160,7 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
             <FileTabs />
             {isPlaybackMode && <PlaybackScrubber />}
 
-            <div className="grow relative">
+            <div className="grow relative min-h-0">
               {isPlaybackMode ? (
                 <Editor
                   height="100%" theme="vs-dark" language={language.toLowerCase()}
@@ -155,9 +171,11 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
             </div>
           </section>
 
-          <aside className="w-2/5 flex flex-col bg-zinc-900">
-            <TerminalPanel />
-            <div className="h-1/2 flex flex-col border-t border-zinc-800">
+          <aside className="w-full lg:w-2/5 h-[40%] lg:h-full flex flex-col bg-zinc-900 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
+              <TerminalPanel />
+            </div>
+            <div className="flex-1 min-h-0 flex flex-col border-t border-zinc-800">
               <Chat />
             </div>
           </aside>

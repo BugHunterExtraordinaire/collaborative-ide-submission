@@ -16,7 +16,7 @@ export default function EditorToolbar() {
   return (
     <>
       <header className="px-5 py-2.5 bg-zinc-950 flex justify-between items-center border-b border-zinc-800">
-        <section className="flex items-center gap-3" aria-label='Session Information'>
+        <section className="flex flex-wrap items-center gap-3" aria-label='Session Information'>
           <p>{sessionName}</p>
           <p className="text-zinc-500 text-xs font-mono bg-zinc-900 px-2 py-1 rounded border border-zinc-800">
             {currentRoom}
