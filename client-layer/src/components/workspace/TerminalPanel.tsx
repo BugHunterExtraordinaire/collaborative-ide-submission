@@ -56,7 +56,7 @@ export default function TerminalPanel() {
   });
 
   return (
-    <aside className="h-1/2 flex flex-col border-b border-zinc-800" aria-labelledby='terminal-header'>
+    <aside className="flex flex-col h-full border-b border-zinc-800" aria-labelledby='terminal-header'>
       <header className="p-3 bg-zinc-800 border-b border-zinc-700 flex justify-between items-center">
         <h3 className="m-0 text-sm font-bold text-zinc-100 uppercase tracking-wider" id='terminal-header'>Terminal Output</h3>
         <button

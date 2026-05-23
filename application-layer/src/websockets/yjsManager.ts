@@ -1,3 +1,6 @@
+// The yjsManager acts as a centralized synchronizer in a distributed PM2 cluster.
+// We leverage Redis to pub/sub binary CRDT updates, ensuring that Node nodes 
+// stay in sync even when they handle different parts of the WebSocket load.
 import http from 'http';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
@@ -36,6 +39,9 @@ export const setupYjsWebSocket = async (server: http.Server) => {
       const { sessionId, updateArray } = JSON.parse(message);
       const ydoc = getYDoc(sessionId, false);
       const updateBuffer = new Uint8Array(updateArray);
+      // NETWORKING LAYER: We use standard V1 ApplyUpdate here. 
+      // It is CPU-lightweight, which is critical for processing real-time typing events 
+      // without stalling the Node.js event loop.
       Y.applyUpdate(ydoc, updateBuffer, 'redis');
     } catch (err) {
       console.error('Error applying Redis Yjs update:', err);
@@ -93,6 +99,9 @@ export const setupYjsWebSocket = async (server: http.Server) => {
 
           saveTimers.set(docName, setTimeout(async () => {
             try {
+              // PERSISTENCE LAYER: We use V2 encoding to compress the Yjs document state.
+              // V2 is mathematically optimized to squash deletion tombstones, preventing the 
+              // session state from hitting MongoDB's hard 16MB document size limit.
               const fullStateBuffer = Buffer.from(Y.encodeStateAsUpdateV2(ydoc));
               await Session.findOneAndUpdate(
                 { sessionId: docName },

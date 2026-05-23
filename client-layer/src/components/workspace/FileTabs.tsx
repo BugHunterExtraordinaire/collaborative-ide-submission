@@ -15,9 +15,13 @@ export default function FileTabs() {
 
   const handleAdd: React.SubmitEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault();
-    if (newFileName.trim() && !files.includes(newFileName.trim())) {
-      localDoc?.getArray<string>('file-list').push([newFileName.trim()]);
-      setActiveFile(newFileName.trim())
+    const cleanName = newFileName.trim();
+    if (cleanName && !files.includes(cleanName)) {
+      // We write to a Y.Map rather than a Y.Array to guarantee unique filenames.
+      // In a distributed system, a Map's key-uniqueness is our primary 
+      // defense against race conditions where two users create the same file.
+      localDoc?.getMap<boolean>('file-system').set(cleanName, true);
+      setActiveFile(cleanName);
       setNewFileName('');
       setIsAdding(false);
     }

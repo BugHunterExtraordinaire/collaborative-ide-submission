@@ -44,7 +44,7 @@ export const executeCode: DefaultController = async (req, res, next) => {
   let container: Docker.Container | null = null;
 
   try {
-    await ensureImageExists(dockerImg);
+    await ensureImageExists(dockerImg); // ensures that language docker image in present, if not pull it from the web
 
     container = await docker.createContainer({
       Image: dockerImg,
@@ -52,11 +52,11 @@ export const executeCode: DefaultController = async (req, res, next) => {
       Env: ["FORCE_COLOR=0"],
       Tty: false,
       HostConfig: {
-        Memory: config.EXEC_MEMORY_MB * 1024 * 1024,
-        MemorySwap: config.EXEC_MEMORY_MB * 1024 * 1024,
+        Memory: config.EXEC_MEMORY_MB * 1024 * 1024, // limit memory to prevent resource exhaustion attacks
+        MemorySwap: config.EXEC_MEMORY_MB * 1024 * 1024, 
         PidsLimit: 50,
-        NanoCpus: config.EXEC_CPUS * 1e9,       
-        NetworkMode: 'none'
+        NanoCpus: config.EXEC_CPUS * 1e9, 
+        NetworkMode: 'none' // creates an isolated network namespace, preventing the container from accessing the internal host network or making outbound HTTP requests to internal services (SSRF protection).
       }
     });
 

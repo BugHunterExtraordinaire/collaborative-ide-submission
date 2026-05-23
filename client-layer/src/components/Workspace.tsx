@@ -26,9 +26,15 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
 
   const { status: yjsStatus, localDoc, provider, isSynced } = useCollabEngine(currentRoom);
 
+  // We utilize a useRef to memoize the Y.Doc during playback. 
+  // This prevents O(N^2) memory thrashing; without this, the browser would 
+  // attempt to garbage-collect and re-allocate the document on every scrubber move.
   const playbackDocRef = useRef<Y.Doc>(new Y.Doc());
   const currentPlaybackIndex = useRef<number>(-1);
 
+  // This snapshot cache serves as our "Video I-Frame" strategy. 
+  // By taking a full binary snapshot every 100 keystrokes, we convert O(N) rewind 
+  // operations into O(1) lookups followed by small delta recalculations.
   const snapshotsRef = useRef<Map<number, Uint8Array>>(new Map());
   const SNAPSHOT_INTERVAL = 100;
 
@@ -104,6 +110,8 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
         const log = historyLogs[i];
         if (log && log.operationData && log.operationData.data) {
           const updateBuffer = new Uint8Array(log.operationData.data);
+          // We strictly use V1 here because the OperationLog stores history 
+          // as a stream of network updates.
           Y.applyUpdate(doc, updateBuffer); 
         }
         
@@ -144,17 +152,10 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
         safeActiveFile, sessionName, setActiveFile, setIsPlaybackMode, setPlaybackIndex,
         setCurrentRoom, setFiles
       }}>
-        <main className="flex flex-col lg:flex-row h-screen bg-black text-white font-sans overflow-hidden">
+        <main className="flex flex-col lg:flex-row lg:h-screen bg-black text-white font-sans overflow-hidden">
 
-          <section className="w-full lg:w-3/5 h-[60%] lg:h-full border-b lg:border-b-0 lg:border-r border-zinc-800 flex flex-col bg-zinc-900 relative"
+          <section className="w-full lg:w-3/5 lg:h-full h-75dvh border-b lg:border-b-0 lg:border-r border-zinc-800 flex flex-col bg-zinc-900 relative min-h-0"
             aria-label="Code Editor and File Management">
-
-            <div className="absolute top-2 right-2 lg:top-10 lg:right-[41%] z-10 text-xs font-mono px-2 py-1 bg-black/50 rounded border border-zinc-700 flex items-center gap-2"
-              role="status"
-              aria-live="polite">
-              <span className={`w-2 h-2 rounded-full ${yjsStatus === 'Connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} aria-hidden='true'></span>
-              <span className="sr-only">Connection Status: </span>{yjsStatus}
-            </div>
 
             <EditorToolbar />
             <FileTabs />
@@ -171,11 +172,11 @@ export default function Workspace({ currentRoom, user, setCurrentRoom }: Workspa
             </div>
           </section>
 
-          <aside className="w-full lg:w-2/5 h-[40%] lg:h-full flex flex-col bg-zinc-900 min-h-0">
-            <div className="flex-1 min-h-0 flex flex-col">
+          <aside className="w-full lg:w-2/5 lg:h-full h-75dvh flex flex-col bg-zinc-900 overflow-y-auto lg:overflow-y-hidden min-h-0">
+            <div className="flex-1 h-1/2 flex flex-col">
               <TerminalPanel />
             </div>
-            <div className="flex-1 min-h-0 flex flex-col border-t border-zinc-800">
+            <div className="flex-1 h-1/2 flex flex-col border-t border-zinc-800">
               <Chat />
             </div>
           </aside>

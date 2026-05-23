@@ -101,6 +101,8 @@ pm2 start ecosystem.config.js
 pm2 logs
 ```
 
+Wait until the 3 ide nodes log API & Synchronization Cluster listening on http://localhost:<PORT>
+
 The Execution Layer can be booted by executing these command
 ```bash
 cd ../execution-layer
